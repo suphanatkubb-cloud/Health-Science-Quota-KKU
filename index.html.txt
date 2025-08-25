@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>เครื่องคำนวณคะแนน NETSAT — ม.ขอนแก่น (สายสุขภาพ)</title>
+<style>
+  :root{
+    --brick: #9e2f2b; /* สีแดงอิฐ */
+    --muted:#f4f1ef;
+    --accent:#f08a5d;
+    --glass: rgba(255,255,255,0.06);
+    --card-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans Thai", "Noto Sans", sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background: linear-gradient(180deg, #fffdfa 0%, #fff7f6 100%);
+    color:#1a1a1a;
+    -webkit-font-smoothing:antialiased;
+    padding:32px;
+    display:flex;
+    justify-content:center;
+  }
+  .app{
+    width:100%;
+    max-width:1060px;
+  }
+
+  header.top{
+    display:flex;
+    gap:18px;
+    align-items:center;
+    padding:18px 22px;
+    background:linear-gradient(90deg, rgba(158,47,43,0.04), rgba(240,138,93,0.02));
+    border-left:6px solid var(--brick);
+    border-radius:12px;
+    margin-bottom:18px;
+  }
+  .logos{display:flex;gap:12px;align-items:center}
+  .logos img{height:56px; width:auto; object-fit:contain}
+  h1{margin:0;font-size:18px; letter-spacing:0.2px}
+  p.lead{margin:0;color:#5b5b5b;font-size:13px}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:16px;
+    margin-top:12px;
+  }
+  @media(min-width:980px){
+    .grid{grid-template-columns: 1fr 360px;}
+  }
+
+  .panel{
+    background: white;
+    border-radius:12px;
+    padding:18px;
+    box-shadow: var(--card-shadow);
+  }
+
+  .faculty{
+    border-left:4px solid var(--brick);
+    padding:14px;
+    margin-bottom:12px;
+    border-radius:10px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.98), rgba(254,250,249,0.98));
+  }
+
+  .faculty h3{margin:0 0 6px 0;font-size:16px}
+  .subject-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+  .subject-row label{flex:1;font-size:14px;color:#333}
+  .subject-row input[type=number]{
+    width:92px;padding:8px;border-radius:8px;border:1px solid #e6e6e6;font-size:13px;
+    text-align:right;
+  }
+
+  .muted{color:#666;font-size:13px}
+  .actions{display:flex;gap:8px;align-items:center;margin-top:12px}
+  button.primary{
+    background: linear-gradient(180deg,var(--brick), #7f2321);
+    color:white;padding:10px 14px;border:none;border-radius:10px;font-weight:600;cursor:pointer;
+    box-shadow: 0 6px 18px rgba(158,47,43,0.12);
+  }
+  button.ghost{background:transparent;border:1px solid #eee;padding:9px 12px;border-radius:10px;cursor:pointer}
+  .result{
+    padding:12px;border-radius:10px;margin-top:12px;background:linear-gradient(180deg,#fff, #fffefa);border:1px solid #f1e9e8;
+  }
+  .pass{color:green;font-weight:700}
+  .fail{color:#b02a2a;font-weight:700}
+
+  /* right column */
+  .summary .card{padding:14px;border-radius:10px;margin-bottom:12px;background:var(--muted);border:1px solid rgba(0,0,0,0.04)}
+  .small{font-size:13px;color:#555}
+  footer{margin-top:18px;text-align:center;color:#777;font-size:13px}
+  .note{font-size:13px;color:#666;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="logos">
+        <!-- รูปจากผลค้นหา (ตัวอย่าง) -->
+        <img src="https://admissions.kku.ac.th/net.../netsat-logo.png" alt="NETSAT logo" id="netsatLogo">
+        <img src="https://www.kku.ac.th/th/rl_gallery/official-logo/logo-kku.png" alt="KKU logo" id="kkuLogo">
+      </div>
+      <div style="flex:1">
+        <h1>เครื่องคำนวณคะแนน NETSAT — สายสุขภาพ (มหาวิทยาลัยขอนแก่น)</h1>
+        <p class="lead">กรอกคะแนนแต่ละวิชา (เต็ม 100) ระบบจะคำนวณคะแนนรวมแบบถ่วงน้ำหนักและตรวจเกณฑ์ขั้นต่ำอัตโนมัติ</p>
+      </div>
+    </header>
+
+    <div class="grid">
+      <main class="panel">
+        <!-- Faculties forms -->
+        <div id="facultiesContainer">
+          <!-- Faculty blocks will be injected here -->
+        </div>
+
+        <div class="note">
+          * ทุกวิชาให้กรอกคะแนนเป็นตัวเลข 0–100. <br>
+          * ข้อความแจ้งเตือนจะบอกว่าผ่านเกณฑ์ขั้นต่ำของแต่ละคณะหรือไม่
+        </div>
+      </main>
+
+      <aside class="summary panel">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><strong>สรุปผลล่าสุด</strong></div>
+            <div class="small muted" id="lastCalcTime">ยังไม่ได้คำนวณ</div>
+          </div>
+          <div id="summaryList" style="margin-top:12px">
+            <!-- summary rows -->
+            <div class="small muted">กรอกคะแนนแล้วกดคำนวณเพื่อดูสรุป</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>หมายเหตุสำคัญ</strong>
+          <ul class="small">
+            <li>คณะบางคณะมีเกณฑ์ขั้นต่ำ (เช่น แพทยศาสตร์ ต้องมี ≥30 ในแต่ละวิชา และคะแนนรวมขั้นต่ำ ≥50)</li>
+            <li>คะแนนรวมคำนวณจากน้ำหนัก (%) ที่ระบุไว้แต่ละคณะ</li>
+            <li>ภาพตรา/โลโก้ถูกนำมาใช้อ้างอิง; หากต้องการไฟล์ทางการ โปรดดาวน์โหลดจากเว็บ NETSAT / KKU</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <footer>
+      สร้างโดยเครื่องคำนวณ NETSAT • ธีมสีแดงอิฐ • หากต้องการปรับแต่งเพิ่มเติม บอกได้เลย
+    </footer>
+  </div>
+
+<script>
+/*
+  ข้อมูลคณะและคณะ (ชื่อ => ลำดับวิชาและน้ำหนัก)
+  ทุกค่าน้ำหนักเป็นเปอร์เซ็นต์ของคะแนนเต็ม (วิชาเต็ม 100)
+*/
+const FACULTIES = [
+  {
+    id: 'med',
+    name: 'คณะแพทยศาสตรบัณฑิต',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:30},
+      {key:'chem', label:'เคมี', weight:20},
+      {key:'phys', label:'ฟิสิกส์', weight:15},
+      {key:'math', label:'คณิตศาสตร์', weight:15},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:10},
+      {key:'thai', label:'ภาษาไทย', weight:10},
+    ],
+    rules:{
+      perSubjectMin:30,   // แต่ละวิชาต้อง >=30
+      totalMin:50         // คะแนนรวมขั้นต่ำ 50
+    }
+  },
+
+  {
+    id:'pharm',
+    name:'คณะเภสัชศาสตร์ (หลักสูตรปกติ)',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:20},
+      {key:'chem', label:'เคมี', weight:30},
+      {key:'phys', label:'ฟิสิกส์', weight:10},
+      {key:'math', label:'คณิตศาสตร์', weight:20},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:20},
+    ],
+    rules:{}
+  },
+
+  {
+    id:'vet',
+    name:'คณะสัตวแพทยศาสตรบัณฑิต',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:15},
+      {key:'chem', label:'เคมี', weight:15},
+      {key:'phys', label:'ฟิสิกส์', weight:15},
+      {key:'math', label:'คณิตศาสตร์', weight:15},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:25},
+      {key:'thai', label:'ภาษาไทย', weight:15},
+    ],
+    rules:{
+      totalMinPercent:30 // คะแนนรวมขั้นต่ำ 30% (ของคะแนนรวม 100)
+    }
+  },
+
+  {
+    id:'nurse',
+    name:'คณะพยาบาลศาสตรบัณฑิต',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:20},
+      {key:'chem', label:'เคมี', weight:15},
+      {key:'phys', label:'ฟิสิกส์', weight:15},
+      {key:'math', label:'คณิตศาสตร์', weight:20},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:20},
+      {key:'thai', label:'ภาษาไทย', weight:10},
+    ],
+    rules:{}
+  },
+
+  {
+    id:'radtech',
+    name:'คณะแพทยศาสตร์ รังสีเทคนิค (ภาคปกติ)',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:22.5},
+      {key:'chem', label:'เคมี', weight:15},
+      {key:'phys', label:'ฟิสิกส์', weight:22.5},
+      {key:'math', label:'คณิตศาสตร์', weight:15},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:20},
+      {key:'thai', label:'ภาษาไทย', weight:10},
+    ],
+    rules:{}
+  },
+
+  {
+    id:'publichealth',
+    name:'สาธารณสุขศาสตร์',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:15},
+      {key:'chem', label:'เคมี', weight:15},
+      {key:'phys', label:'ฟิสิกส์', weight:15},
+      {key:'math', label:'คณิตศาสตร์', weight:15},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:15},
+      {key:'thai', label:'ภาษาไทย', weight:10},
+      {key:'sciTech', label:'วิทยาศาสตร์และเทคโนโลยี', weight:15},
+    ],
+    rules:{}
+  },
+
+  {
+    id:'medtech',
+    name:'เทคนิคการแพทย์ (คณะเทคนิคการแพทย์)',
+    subjects:[
+      {key:'bio', label:'ชีววิทยา', weight:25},
+      {key:'chem', label:'เคมี', weight:25},
+      {key:'phys', label:'ฟิสิกส์', weight:10},
+      {key:'math', label:'คณิตศาสตร์', weight:10},
+      {key:'eng', label:'ภาษาอังกฤษ', weight:10},
+      {key:'thai', label:'ภาษาไทย', weight:10},
+      {key:'sciTech', label:'วิทยาศาสตร์และเทคโนโลยี', weight:10},
+    ],
+    rules:{}
+  }
+];
+
+// helper: create input id
+function iid(facId, key){ return `${facId}_${key}` }
+
+const container = document.getElementById('facultiesContainer');
+const summaryList = document.getElementById('summaryList');
+const lastCalcTime = document.getElementById('lastCalcTime');
+
+// build UI
+FACULTIES.forEach(f => {
+  const card = document.createElement('div');
+  card.className = 'faculty';
+
+  const title = document.createElement('h3');
+  title.textContent = f.name;
+  card.appendChild(title);
+
+  const info = document.createElement('div');
+  info.className='muted small';
+  info.innerHTML = f.rules.perSubjectMin ? `เกณฑ์: แต่ละวิชา ≥ ${f.rules.perSubjectMin} คะแนน; คะแนนรวมขั้นต่ำ ${f.rules.totalMin || f.rules.totalMinPercent || '-'} ` : '';
+  card.appendChild(info);
+
+  f.subjects.forEach(s => {
+    const row = document.createElement('div');
+    row.className = 'subject-row';
+    const label = document.createElement('label');
+    label.setAttribute('for', iid(f.id,s.key));
+    label.textContent = `${s.label} (${s.weight}%)`;
+    const input = document.createElement('input');
+    input.type='number';
+    input.min=0; input.max=100; input.step=0.1;
+    input.id = iid(f.id,s.key);
+    input.placeholder = '0';
+    row.appendChild(label);
+    row.appendChild(input);
+    card.appendChild(row);
+  });
+
+  const actions = document.createElement('div');
+  actions.className='actions';
+  const btn = document.createElement('button');
+  btn.className='primary';
+  btn.textContent = 'คำนวณ';
+  btn.addEventListener('click', ()=> calculateFaculty(f));
+  actions.appendChild(btn);
+
+  const reset = document.createElement('button');
+  reset.className='ghost';
+  reset.textContent='ล้าง';
+  reset.addEventListener('click', ()=> {
+    f.subjects.forEach(s => document.getElementById(iid(f.id,s.key)).value = '');
+    // remove result area
+    const res = document.getElementById(f.id+'_result');
+    if(res) res.remove();
+  });
+  actions.appendChild(reset);
+
+  card.appendChild(actions);
+
+  // result area
+  const result = document.createElement('div');
+  result.className='result';
+  result.id = f.id + '_result';
+  result.style.display = 'none';
+  card.appendChild(result);
+
+  container.appendChild(card);
+});
+
+function clampNum(v){ 
+  if (v === '' || v === null || isNaN(v)) return NaN;
+  return Math.max(0, Math.min(100, Number(v)));
+}
+
+function calculateFaculty(f){
+  // read inputs
+  const vals = {};
+  let missing = false;
+  f.subjects.forEach(s=>{
+    const el = document.getElementById(iid(f.id,s.key));
+    const v = clampNum(el.value);
+    vals[s.key] = v;
+    if(isNaN(v)) missing = true;
+  });
+
+  // compute weighted sum
+  let total = 0;
+  const breakdown = [];
+  f.subjects.forEach(s=>{
+    const v = vals[s.key];
+    const contrib = (isNaN(v) ? 0 : (v * s.weight / 100));
+    breakdown.push({label:s.label, score:v, weight:s.weight, contrib:contrib});
+    total += contrib;
+  });
+  total = Math.round((total + Number.EPSILON) * 100)/100;
+
+  // determine pass/fail by rules
+  let pass = true;
+  const reasons = [];
+  if(f.rules.perSubjectMin){
+    f.subjects.forEach(s=>{
+      const v = vals[s.key];
+      if(isNaN(v) || v < f.rules.perSubjectMin){
+        pass = false;
+        reasons.push(`คะแนนในวิชา ${s.label} ต่ำกว่า ${f.rules.perSubjectMin}`);
+      }
+    });
+  }
+  if(f.rules.totalMin){
+    if(total < f.rules.totalMin){
+      pass = false;
+      reasons.push(`คะแนนรวมต่ำกว่า ${f.rules.totalMin}`);
+    }
+  }
+  if(f.rules.totalMinPercent){
+    if(total < f.rules.totalMinPercent){
+      pass = false;
+      reasons.push(`คะแนนรวมต่ำกว่า ${f.rules.totalMinPercent}%`);
+    }
+  }
+
+  // render result area
+  const resultEl = document.getElementById(f.id + '_result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = '';
+
+  const h = document.createElement('div');
+  h.innerHTML = `<strong>ผลลัพธ์ — ${f.name}</strong>`;
+  resultEl.appendChild(h);
+
+  const table = document.createElement('div');
+  table.style.marginTop='8px';
+  table.innerHTML = breakdown.map(b=>{
+    const score = isNaN(b.score) ? '-' : Number(b.score).toFixed(1);
+    const contrib = isNaN(b.contrib) ? '-' : b.contrib.toFixed(2);
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #f1ecec">
+      <div style="min-width:140px">${b.label} <span class="small muted">(${b.weight}%)</span></div>
+      <div style="text-align:right"><span class="small muted">คะแนน: </span> ${score} &nbsp;&nbsp; <span class="small muted">ผล: </span> ${contrib}</div>
+    </div>`;
+  }).join('');
+  resultEl.appendChild(table);
+
+  const totalDiv = document.createElement('div');
+  totalDiv.style.marginTop='10px';
+  totalDiv.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+    <div class="small">คะแนนรวม (ถ่วงน้ำหนัก)</div>
+    <div><strong style="font-size:20px">${total.toFixed(2)}</strong>/100</div>
+  </div>`;
+  resultEl.appendChild(totalDiv);
+
+  // pass/fail
+  const status = document.createElement('div');
+  status.style.marginTop='10px';
+  if(pass){
+    status.innerHTML = `<div class="pass">สถานะ: ผ่านเกณฑ์</div>`;
+  } else {
+    status.innerHTML = `<div class="fail">สถานะ: ไม่ผ่านเกณฑ์</div>
+      <div class="small muted">${reasons.join('；')}</div>`;
+  }
+  resultEl.appendChild(status);
+
+  // update summary (right column)
+  updateSummary(f.name, total, pass);
+
+  // update last calc time
+  const now = new Date();
+  lastCalcTime.textContent = now.toLocaleString('th-TH');
+}
+
+function updateSummary(name, total, pass){
+  // append or replace item for this faculty
+  let found = false;
+  const rows = Array.from(summaryList.children);
+  rows.forEach(r=>{
+    if(r.dataset && r.dataset.fac === name){
+      r.querySelector('.score').textContent = total.toFixed(2);
+      r.querySelector('.status').textContent = pass ? 'ผ่าน' : 'ไม่ผ่าน';
+      r.querySelector('.status').className = 'status ' + (pass ? 'pass':'fail');
+      found = true;
+    }
+  });
+  if(!found){
+    const div = document.createElement('div');
+    div.dataset.fac = name;
+    div.style.display='flex';
+    div.style.justifyContent='space-between';
+    div.style.alignItems='center';
+    div.style.padding='8px 0';
+    div.innerHTML = `<div style="max-width:70%"><strong style="font-size:14px">${name}</strong><div class="small muted">${new Date().toLocaleDateString('th-TH')}</div></div>
+      <div style="text-align:right">
+        <div class="score" style="font-weight:700">${total.toFixed(2)}</div>
+        <div class="status ${pass? 'pass':'fail'}">${pass? 'ผ่าน':'ไม่ผ่าน'}</div>
+      </div>`;
+    // prepend latest
+    summaryList.prepend(div);
+  }
+}
+
+/* OPTIONAL: try to load images from likely URLs (will silently fail if not reachable) */
+(function loadSampleLogos(){
+  const netsat = document.getElementById('netsatLogo');
+  const kku = document.getElementById('kkuLogo');
+  // recommended official sources found via search:
+  netsat.src = 'https://admissions.kku.ac.th/wp-content/uploads/2021/11/netsat-logo.png';
+  kku.src = 'https://www.kku.ac.th/wp-content/uploads/rl_gallery/logo-kku.png';
+})();
+</script>
+</body>
+</html>
